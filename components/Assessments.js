@@ -17,6 +17,7 @@ import {
 } from "./Icons";
 import { useRouter } from "next/navigation";
 import NewAssessment from "./NewAssessment";
+import InfoModal from "./modals/Info";
 import {
   createAssessment,
   getAssessmentCategory,
@@ -25,47 +26,30 @@ import {
 } from "@/app/(api)/assessment";
 import { customLocale } from "@/utils/values";
 
-const getActionMenu = (record) => ({
-  items: [
-    {
-      key: "1",
-      label: (
-        <div className="flex items-center gap-2">
-          <CircleCheckIcon width={18} /> Төлөв өөрчлөх
-        </div>
-      ),
-      onClick: () => {},
-    },
-    {
-      key: "2",
-      label: (
-        <div className="flex items-center gap-2">
-          <EyeIcon width={18} /> Урьдчилж харах
-        </div>
-      ),
-      onClick: () => {},
-    },
-    {
-      key: "3",
-      label: (
-        <div className="flex items-center gap-2">
-          <CopyIcon width={18} /> Хувилах
-        </div>
-      ),
-      onClick: () => {},
-    },
-    {
-      key: "4",
-      label: (
-        <div className="flex items-center gap-2">
-          <TrashIcon width={18} /> Устгах
-        </div>
-      ),
-      danger: true,
-      onClick: () => {},
-    },
-  ],
-});
+const typeOptions = [
+  {
+    label: (
+      <div className="flex gap-2 items-center">
+        <span className="text-main">
+          <SurveyIcon width={18} />
+        </span>
+        <span>Үнэлгээ</span>
+      </div>
+    ),
+    value: 20,
+  },
+  {
+    label: (
+      <div className="flex gap-2 items-center">
+        <span className="text-main">
+          <TestIcon width={18} />
+        </span>
+        <span>Зөв хариулттай тест</span>
+      </div>
+    ),
+    value: 10,
+  },
+];
 
 const Assessments = () => {
   const router = useRouter();
@@ -74,7 +58,64 @@ const Assessments = () => {
   const [assessments, setAssessments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const [typeFilter, setTypeFilter] = useState(null);
   const [filteredAssessments, setFilteredAssessments] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    record: null,
+  });
+  const [messageApi, contextHolder] = message.useMessage();
+
+  const getActionMenu = (record) => ({
+    items: [
+      {
+        key: "1",
+        label: (
+          <div className="flex items-center gap-2">
+            <CircleCheckIcon width={18} /> Төлөв өөрчлөх
+          </div>
+        ),
+        onClick: (e) => {
+          e.domEvent.stopPropagation();
+        },
+      },
+      {
+        key: "2",
+        label: (
+          <div className="flex items-center gap-2">
+            <EyeIcon width={18} /> Урьдчилж харах
+          </div>
+        ),
+        onClick: (e) => {
+          e.domEvent.stopPropagation();
+        },
+      },
+      {
+        key: "3",
+        label: (
+          <div className="flex items-center gap-2">
+            <CopyIcon width={18} /> Хувилах
+          </div>
+        ),
+        onClick: (e) => {
+          e.domEvent.stopPropagation();
+        },
+      },
+      {
+        key: "4",
+        label: (
+          <div className="flex items-center gap-2">
+            <TrashIcon width={18} /> Устгах
+          </div>
+        ),
+        danger: true,
+        onClick: (e) => {
+          e.domEvent.stopPropagation();
+          setDeleteModal({ open: true, record });
+        },
+      },
+    ],
+  });
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -100,11 +141,20 @@ const Assessments = () => {
   }, []);
 
   useEffect(() => {
-    const filtered = assessments.filter((item) =>
-      item.data.name.toLowerCase().includes(searchText.toLowerCase())
-    );
+    let filtered = assessments;
+
+    if (searchText) {
+      filtered = filtered.filter((item) =>
+        item.data.name.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    if (typeFilter) {
+      filtered = filtered.filter((item) => item.data.type === typeFilter);
+    }
+
     setFilteredAssessments(filtered);
-  }, [assessments, searchText]);
+  }, [assessments, searchText, typeFilter]);
 
   const handleOk = async (formData) => {
     localStorage.removeItem("assessmentData");
@@ -130,12 +180,9 @@ const Assessments = () => {
       answerCategories: answerCategories,
     }).then((d) => {
       if (d.success) {
-        console.log(d);
         router.push(`/test?id=${d.data.id}`);
       }
     });
-
-    console.log(answerCategories);
     // router.push("/test");
     setIsModalOpen(false);
   };
@@ -160,53 +207,43 @@ const Assessments = () => {
     {
       title: "Тестийн нэр",
       dataIndex: ["data", "name"],
-      sorter: (a, b) => a.name.localeCompare(b.name),
+      sorter: (a, b) => a.data.name.localeCompare(b.data.name),
       render: (text, record) => (
         <div className="flex items-center gap-2 text-main">
           <div className="text-black font-semibold">{text}</div>
         </div>
       ),
+      width: "22%",
     },
     {
       title: "Ангилал",
-      dataIndex: "category.id",
-      filters: [
-        {
-          text: "Joe",
-          value: "Joe",
-        },
-        {
-          text: "Category 1",
-          value: "Category 1",
-          children: [
-            {
-              text: "Yellow",
-              value: "Yellow",
-            },
-            {
-              text: "Pink",
-              value: "Pink",
-            },
-          ],
-        },
-        {
-          text: "Category 2",
-          value: "Category 2",
-          children: [
-            {
-              text: "Green",
-              value: "Green",
-            },
-            {
-              text: "Black",
-              value: "Black",
-            },
-          ],
-        },
-      ],
+      dataIndex: "category",
+      render: (_, record) => {
+        // If category has parent, show parent name, otherwise show category name
+        const categoryName = record.category?.parent
+          ? record.category.parent.name
+          : record.category?.name;
+
+        return <span>{categoryName}</span>;
+      },
+      filters: category
+        .filter((cat) => cat.parent === null) // Get top-level categories
+        .map((mainCat) => ({
+          text: mainCat.name,
+          value: mainCat.id,
+          children: mainCat.subcategories?.map((subCat) => ({
+            text: subCat.name,
+            value: subCat.id,
+          })),
+        })),
       filterMode: "tree",
       filterSearch: true,
-      onFilter: (value, record) => record.name.includes(value),
+      onFilter: (value, record) => {
+        // Check if the record's category matches either directly or via parent
+        return (
+          record.category?.id === value || record.category?.parent?.id === value
+        );
+      },
     },
     {
       title: "Төлөв",
@@ -214,14 +251,31 @@ const Assessments = () => {
     },
     {
       title: "Үүсгэсэн",
-      dataIndex: ["data", "createdUser"],
-      filters: [...new Set(assessments.map((item) => item.createdUser))].map(
-        (user) => ({
-          text: user,
-          value: user,
+      dataIndex: "user",
+      render: (user) => {
+        if (!user?.createdUser) return null;
+        const firstName = user.createdUser.firstname;
+        const lastInitial = user.createdUser.lastname?.charAt(0) || "";
+        return `${firstName}.${lastInitial}`;
+      },
+      filters: [
+        ...new Set(
+          assessments
+            .filter((item) => item.user?.createdUser)
+            .map((item) => item.user.createdUser.id)
+        ),
+      ]
+        .map((userId) => {
+          const user = assessments.find(
+            (item) => item.user?.createdUser?.id === userId
+          )?.user?.createdUser;
+          return {
+            text: `${user?.firstname}.${user?.lastname?.charAt(0) || ""}`,
+            value: user?.id,
+          };
         })
-      ),
-      onFilter: (value, record) => record.createdUser === value,
+        .filter(Boolean),
+      onFilter: (value, record) => record.user?.createdUser?.id === value,
       filterSearch: true,
     },
     {
@@ -232,7 +286,7 @@ const Assessments = () => {
     },
     {
       title: "Шинэчилсэн огноо",
-      dataIndex: ["data", "createdAt"],
+      dataIndex: ["data", "updatedAt"],
       sorter: (a, b) => new Date(a.data.updatedAt) - new Date(b.data.updatedAt),
       render: (date) => new Date(date).toISOString().split("T")[0],
     },
@@ -257,11 +311,42 @@ const Assessments = () => {
     },
   ];
 
-  console.log("hh", assessments);
+  const handleDelete = async (record) => {
+    if (!record?.data?.id) return;
+
+    setLoading(true);
+    await deleteAssessmentById(record.data.id)
+      .then((d) => {
+        if (d.success) {
+          setDeleteModal({ open: false, record: null });
+          messageApi.info("Тест устсан.", [3]);
+          getConstant();
+        } else {
+          messageApi.error(d.message || "Тест устгахад алдаа гарлаа.");
+        }
+      })
+      .catch(() => {
+        message.error("Сервертэй холбогдоход алдаа гарлаа");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   return (
     <>
       <Spin tip="Уншиж байна..." fullscreen spinning={loading} />
+      {contextHolder}
+      <InfoModal
+        open={deleteModal.open}
+        onOk={() => {
+          if (deleteModal.record) {
+            handleDelete(deleteModal.record);
+          }
+        }}
+        onCancel={() => setDeleteModal({ open: false, record: null })}
+        text={`${deleteModal.record?.data?.name}-ийг устгах гэж байна. Итгэлтэй байна уу?`}
+      />
       <div className="flex justify-between">
         <div className="flex gap-4">
           <div>
@@ -276,9 +361,13 @@ const Assessments = () => {
           </div>
           <div>
             <Select
+              className="w-56"
               placeholder="Төрлөөр хайх"
               suffixIcon={<DropdownIcon width={15} height={15} />}
-              options={[{ name: "Үнэлгээ", value: 1 }]}
+              options={typeOptions}
+              onChange={(value) => setTypeFilter(value)}
+              allowClear
+              onClear={() => setTypeFilter(null)}
             />
           </div>
         </div>
@@ -297,6 +386,7 @@ const Assessments = () => {
           columns={columns}
           dataSource={filteredAssessments}
           locale={customLocale}
+          rowKey={(record) => record.data.id}
           onRow={(record) => ({
             onClick: () => router.push(`/test?id=${record.data.id}`),
           })}

@@ -4,49 +4,11 @@ import React, { useState, useEffect } from "react";
 import { MenuIcon, DropdownIcon, TagIcon } from "../Icons";
 import { Select, Divider, Collapse, Switch, InputNumber } from "antd";
 import InfoModal from "../modals/Info";
-
-const questionTypes = [
-  { value: "single", label: "Нэг хариулттай" },
-  { value: "multiple", label: "Олон хариулттай" },
-  { value: "trueFalse", label: "Үнэн, худал" },
-  { value: "text", label: "Текст оруулах" },
-  { value: "matrix", label: "Матриц" },
-  { value: "constantSum", label: "Оноо байршуулах" },
-];
-
-const getDefaultAnswers = (type, count = 4) => {
-  const templates = {
-    single: (i) => ({
-      value: `Сонголт ${i + 1}`,
-      image: null,
-      score: 0,
-      isCorrect: false,
-    }),
-    multiple: (i) => ({
-      value: `Сонголт ${i + 1}`,
-      image: null,
-      score: 0,
-      isCorrect: false,
-    }),
-    trueFalse: (i) => ({
-      value: i === 0 ? "Үнэн" : "Худал",
-      score: i === 0 ? 1 : 0,
-      isCorrect: false,
-    }),
-    text: () => [],
-    constantSum: (i) => ({
-      value: `Сонголт ${i + 1}`,
-      score: 0,
-      category: null,
-    }),
-    matrix: (i) => ({ value: `Сонголт ${i + 1}`, score: 0, category: null }),
-  };
-
-  const template = templates[type] || (() => ({}));
-  return type === "text"
-    ? []
-    : Array.from({ length: count }, (_, i) => template(i));
-};
+import {
+  getDefaultAnswers,
+  questionTypes,
+  QUESTION_TYPES,
+} from "@/utils/values";
 
 export const Tools = ({
   selection,
@@ -90,72 +52,27 @@ export const Tools = ({
 
 const QuestionSettings = ({ question, onUpdate }) => {
   const updateOptions = (type, count) => {
-    let answers;
-    let updates = { type, optionCount: count };
+    const answers = getDefaultAnswers(type, count);
+    let updates = {
+      type,
+      optionCount: count,
+      question: {
+        ...question.question,
+        minValue:
+          type === QUESTION_TYPES.CONSTANT_SUM
+            ? 0
+            : question.question?.minValue || 0,
+        maxValue:
+          type === QUESTION_TYPES.CONSTANT_SUM
+            ? 100
+            : question.question?.maxValue || 1,
+      },
+    };
 
-    if (question.type === "constantSum") {
-      updates.constantSumSettings = {
-        totalPoints: question.totalPoints,
-        minValue: question.minValue,
-        maxValue: question.maxValue,
-      };
-    }
-
-    if (type === "matrix") {
-      answers = {
-        answer: Array.from({ length: count }, (_, i) => ({
-          value: {
-            value: `Сонголт ${i + 1}`,
-            point: 0,
-            orderNumber: i,
-          },
-          matrix: Array.from({ length: count }, (_, j) => ({
-            value: `Цэг ${j + 1}`,
-            category: null,
-            orderNumber: j,
-          })),
-        })),
-      };
-    } else {
-      const currentAnswers = question.answers || [];
-      const preserveAnswers =
-        ["single", "multiple", "constantSum"].includes(type) &&
-        ["single", "multiple", "constantSum"].includes(question.type);
-
-      if (preserveAnswers) {
-        answers = Array.from({ length: count }, (_, i) => ({
-          value: currentAnswers[i]?.value || `Сонголт ${i + 1}`,
-          image: currentAnswers[i]?.image || null,
-          score: currentAnswers[i]?.score || 0,
-          isCorrect: currentAnswers[i]?.isCorrect || false,
-          category: currentAnswers[i]?.category || null,
-        }));
-      } else {
-        answers = getDefaultAnswers(type, count);
-      }
-    }
-
-    updates.answers = answers;
-
-    if (type === "constantSum") {
-      if (question.constantSumSettings) {
-        updates = {
-          ...updates,
-          totalPoints: question.constantSumSettings.totalPoints,
-          minValue: question.constantSumSettings.minValue,
-          maxValue: question.constantSumSettings.maxValue,
-        };
-      } else {
-        updates = {
-          ...updates,
-          totalPoints: 100,
-          minValue: 0,
-          maxValue: 100,
-        };
-      }
-    }
-
-    onUpdate(question.id, updates);
+    onUpdate(question.id, {
+      ...updates,
+      answers,
+    });
   };
 
   const handleOptionCountChange = (value) => {
@@ -164,12 +81,22 @@ const QuestionSettings = ({ question, onUpdate }) => {
       value > currentAnswers.length
         ? [
             ...currentAnswers,
-            ...getDefaultAnswers(question.type, value - currentAnswers.length),
+            ...Array.from(
+              { length: value - currentAnswers.length },
+              (_, i) => ({
+                answer: {
+                  value: `Сонголт ${currentAnswers.length + i + 1}`,
+                  point: 0,
+                  orderNumber: currentAnswers.length + i,
+                  category: null,
+                  correct: false,
+                },
+              })
+            ),
           ]
         : currentAnswers.slice(0, value);
 
     onUpdate(question.id, {
-      optionCount: value,
       answers: newAnswers,
     });
   };
@@ -189,7 +116,7 @@ const QuestionSettings = ({ question, onUpdate }) => {
               <InputNumber
                 min={2}
                 max={10}
-                value={question.optionCount}
+                value={question.answers?.length || 4} // Use answers length instead
                 onChange={handleOptionCountChange}
               />
               <span>хариулттай</span>
@@ -207,7 +134,7 @@ const QuestionSettings = ({ question, onUpdate }) => {
         <Select
           suffixIcon={<DropdownIcon width={15} height={15} />}
           value={question.type}
-          onChange={(type) => updateOptions(type, type === "trueFalse" ? 2 : 4)}
+          onChange={(type) => updateOptions(type, type === 30 ? 2 : 4)}
           options={questionTypes}
           className="w-full"
         />
@@ -226,15 +153,15 @@ const QuestionSettings = ({ question, onUpdate }) => {
       </div>
       <Divider />
 
-      {question.type === "matrix" && (
+      {question.type === 40 && (
         <MatrixSettings question={question} onUpdate={onUpdate} />
       )}
 
-      {question.type === "constantSum" && (
+      {question.type === 50 && (
         <ConstantSumSettings question={question} onUpdate={onUpdate} />
       )}
 
-      {["single", "multiple"].includes(question.type) && (
+      {[10, 20].includes(question.type) && (
         <>
           {renderOptionCountSetting()}
           <Divider className="clps" />
@@ -253,36 +180,18 @@ const MatrixSettings = ({ question, onUpdate }) => (
         <InputNumber
           min={2}
           max={10}
-          value={question.answers?.answer?.[0]?.matrix?.length || 3}
+          value={question.answers?.[0]?.matrix?.length || 3}
           onChange={(value) => {
-            const currentAnswers = question.answers?.answer || [];
-            const currentMatrixLength = currentAnswers[0]?.matrix?.length || 0;
+            const newAnswers = question.answers.map((answer) => ({
+              ...answer,
+              matrix: Array.from({ length: value }, (_, j) => ({
+                value: answer.matrix[j]?.value || `Цэг ${j + 1}`,
+                category: answer.matrix[j]?.category || null,
+                orderNumber: j,
+              })),
+            }));
 
-            const newAnswers = currentAnswers.map((answer) => {
-              const matrix = [...(answer.matrix || [])];
-
-              if (value > currentMatrixLength) {
-                for (let i = currentMatrixLength; i < value; i++) {
-                  matrix.push({
-                    value: `Цэг ${i + 1}`,
-                    category: null,
-                    point: 0,
-                    orderNumber: i,
-                  });
-                }
-              } else {
-                matrix.length = value;
-              }
-
-              return {
-                ...answer,
-                matrix,
-              };
-            });
-
-            onUpdate(question.id, {
-              answers: { answer: newAnswers },
-            });
+            onUpdate(question.id, { answers: newAnswers });
           }}
           className="w-full"
         />
@@ -293,35 +202,23 @@ const MatrixSettings = ({ question, onUpdate }) => (
         <InputNumber
           min={2}
           max={10}
-          value={question.answers?.answer?.length || 2}
+          value={question.answers?.length || 2}
           onChange={(value) => {
-            const currentAnswers = question.answers?.answer || [];
+            const newAnswers = Array.from({ length: value }, (_, i) => ({
+              answer: {
+                value: question.answers[i]?.answer?.value || `Сонголт ${i + 1}`,
+                point: question.answers[i]?.answer?.point || 0,
+                orderNumber: i,
+                category: question.answers[i]?.answer?.category || null,
+              },
+              matrix: question.answers[0]?.matrix?.map((_, j) => ({
+                value: question.answers[0].matrix[j]?.value || `Цэг ${j + 1}`,
+                category: question.answers[0].matrix[j]?.category || null,
+                orderNumber: j,
+              })),
+            }));
 
-            const newAnswers = Array(value)
-              .fill()
-              .map((_, i) => {
-                if (i < currentAnswers.length) {
-                  return currentAnswers[i];
-                }
-                return {
-                  value: {
-                    value: `Сонголт ${i + 1}`,
-                    point: 0,
-                    orderNumber: i,
-                  },
-                  matrix: scalePoints.map((_, j) => ({
-                    value: scalePoints[j]?.value || `Цэг ${j + 1}`,
-                    category: scalePoints[j]?.category || null,
-                    point: 0,
-                    orderNumber: j,
-                  })),
-                };
-              });
-
-            onUpdate(question.id, {
-              optionCount: value,
-              answers: { answer: newAnswers },
-            });
+            onUpdate(question.id, { answers: newAnswers });
           }}
           className="w-full"
         />
@@ -331,11 +228,9 @@ const MatrixSettings = ({ question, onUpdate }) => (
       <div className="flex items-center gap-2 px-6">
         <Switch
           size="small"
-          checked={question.matrix?.allowMultiple}
+          checked={question.allowMultiple}
           onChange={(checked) =>
-            onUpdate(question.id, {
-              matrix: { ...question.matrix, allowMultiple: checked },
-            })
+            onUpdate(question.id, { allowMultiple: checked })
           }
         />
         <span className="text-sm">Олон сонголт зөвшөөрөх</span>
@@ -361,19 +256,20 @@ const ConstantSumSettings = ({ question, onUpdate }) => (
               <InputNumber
                 min={2}
                 max={10}
-                value={question.optionCount}
+                value={question.answers?.length || 4} // Use answers length
                 onChange={(value) => {
                   const newAnswers = Array.from(
                     { length: value },
                     (_, i) =>
                       question.answers[i] || {
-                        value: `Сонголт ${i + 1}`,
-                        score: 0,
-                        category: null,
+                        answer: {
+                          value: `Сонголт ${i + 1}`,
+                          orderNumber: i,
+                          category: null,
+                        },
                       }
                   );
                   onUpdate(question.id, {
-                    optionCount: value,
                     answers: newAnswers,
                   });
                 }}
@@ -391,8 +287,15 @@ const ConstantSumSettings = ({ question, onUpdate }) => (
       <InputNumber
         min={1}
         max={1000}
-        value={question.totalPoints}
-        onChange={(value) => onUpdate(question.id, { totalPoints: value })}
+        value={question.question?.totalPoints || 100} // Add default value
+        onChange={(value) =>
+          onUpdate(question.id, {
+            question: {
+              ...question.question,
+              totalPoints: value,
+            },
+          })
+        }
         className="w-full"
       />
       <div>оноо</div>
@@ -413,21 +316,31 @@ const ConstantSumSettings = ({ question, onUpdate }) => (
                 <span>Доод:</span>
                 <InputNumber
                   min={0}
-                  max={question.totalPoints - 1}
-                  value={question.minValue}
+                  max={question.question?.totalPoints - 1}
+                  value={question.question?.minValue}
                   onChange={(value) =>
-                    onUpdate(question.id, { minValue: value })
+                    onUpdate(question.id, {
+                      question: {
+                        ...question.question,
+                        minValue: value,
+                      },
+                    })
                   }
                 />
               </div>
               <div className="flex items-center gap-2">
                 <span>Дээд:</span>
                 <InputNumber
-                  min={question.minValue || 0}
-                  max={question.totalPoints}
-                  value={question.maxValue}
+                  min={question.question?.minValue || 0}
+                  max={question.question?.totalPoints}
+                  value={question.question?.maxValue}
                   onChange={(value) =>
-                    onUpdate(question.id, { maxValue: value })
+                    onUpdate(question.id, {
+                      question: {
+                        ...question.question,
+                        maxValue: value,
+                      },
+                    })
                   }
                 />
               </div>

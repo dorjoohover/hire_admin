@@ -182,8 +182,8 @@ const NewAssessment = ({
                 name="categoryInput"
                 rules={[
                   {
-                    validator: (_, value) => {
-                      if (!value || categories.length === 0) {
+                    validator: () => {
+                      if (categories.length === 0) {
                         return Promise.reject("Ангиллууд оруулна уу.");
                       }
                       return Promise.resolve();
@@ -197,21 +197,21 @@ const NewAssessment = ({
                   placeholder="Таслалаар хязгаарлан оруулна уу. Жишээ нь: D,I,S,C"
                   className="category"
                 />
-                {categories.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {categories.map((category, index) => (
-                      <div
-                        key={index}
-                        className="bg-blue-100 px-2 py-0.5 gap-2 rounded-md text-sm flex items-center"
-                      >
-                        <TagIcon width={14} />
-                        {category}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </Form.Item>
             </Form>
+            {categories.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {categories.map((category, index) => (
+                  <div
+                    key={index}
+                    className="bg-blue-100 px-2 py-0.5 gap-2 rounded-md text-sm flex items-center"
+                  >
+                    <TagIcon width={14} />
+                    {category}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

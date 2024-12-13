@@ -4,32 +4,21 @@ import React, { useState, useEffect } from "react";
 import { Block } from "./Block";
 import { Tools } from "./Tools";
 import { TestName } from "./TestName";
+import { getDefaultAnswers, QUESTION_TYPES } from "@/utils/values";
 
-const Questions = ({ assessmentData, onUpdateAssessment }) => {
+const Questions = ({
+  assessmentData,
+  onUpdateAssessment,
+  blocks,
+  setBlocks,
+}) => {
   const [isEditing, setIsEditing] = useState(false);
   const [localTestName, setLocalTestName] = useState(
     assessmentData?.data.name || ""
   );
-  const [blocks, setBlocks] = useState([
-    {
-      id: "block-1",
-      name: "Блок #1",
-      order: 1,
-      value: "",
-      image: null,
-      hasQuestion: false,
-      isExpanded: true,
-      questions: [],
-      settings: {
-        shuffleQuestions: true,
-        shuffleAnswers: true,
-        splitQuestions: false,
-        hasDuration: false,
-      },
-    },
-  ]);
+
   const [selection, setSelection] = useState({
-    blockId: blocks[0].id,
+    blockId: blocks[0]?.id,
     questionId: null,
   });
 
@@ -37,13 +26,30 @@ const Questions = ({ assessmentData, onUpdateAssessment }) => {
     setSelection({ blockId, questionId });
   }, []);
 
-  const updateBlock = React.useCallback((blockId, updates) => {
-    setBlocks((prev) =>
-      prev.map((block) =>
-        block.id === blockId ? { ...block, ...updates } : block
-      )
-    );
-  }, []);
+  const handleBlocksUpdate = React.useCallback(
+    (newBlocks) => {
+      if (onUpdateAssessment) {
+        onUpdateAssessment({
+          ...assessmentData,
+          blocks: newBlocks,
+        });
+      }
+    },
+    [assessmentData, onUpdateAssessment]
+  );
+
+  const updateBlock = React.useCallback(
+    (blockId, updates) => {
+      setBlocks((prev) => {
+        const newBlocks = prev.map((block) =>
+          block.id === blockId ? { ...block, ...updates } : block
+        );
+        handleBlocksUpdate(newBlocks);
+        return newBlocks;
+      });
+    },
+    [handleBlocksUpdate]
+  );
 
   const updateQuestion = React.useCallback((questionId, updates) => {
     setBlocks((prev) =>
@@ -57,25 +63,34 @@ const Questions = ({ assessmentData, onUpdateAssessment }) => {
   }, []);
 
   const addBlock = React.useCallback(() => {
-    const newBlock = {
-      id: `block-${Date.now()}`,
-      name: `Блок #${blocks.length + 1}`,
-      order: blocks.length + 1,
-      value: "",
-      image: null,
-      hasQuestion: false,
-      isExpanded: true,
-      questions: [],
-      settings: {
-        shuffleQuestions: true,
-        shuffleAnswers: true,
-        hasDuration: false,
-        splitQuestions: false,
-      },
-    };
-    setBlocks((prev) => [...prev, newBlock]);
-    handleSelect(newBlock.id, null);
-  }, [blocks.length, handleSelect]);
+    const blockId = `block-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 11)}`;
+
+    setBlocks((prev) => {
+      if (prev.some((block) => block.id === blockId)) {
+        return prev;
+      }
+
+      const newBlock = {
+        id: blockId,
+        name: `Блок #${prev.length + 1}`,
+        order: prev.length + 1,
+        value: "",
+        image: null,
+        hasQuestion: false,
+        isExpanded: true,
+        questions: [],
+      };
+
+      const newBlocks = [...prev, newBlock];
+      handleBlocksUpdate(newBlocks);
+
+      setTimeout(() => handleSelect(blockId, null), 0);
+
+      return newBlocks;
+    });
+  }, [handleBlocksUpdate, handleSelect]);
 
   const deleteBlock = React.useCallback(
     (blockId) => {
@@ -96,40 +111,49 @@ const Questions = ({ assessmentData, onUpdateAssessment }) => {
 
   const addQuestion = React.useCallback(
     (blockId) => {
-      const block = blocks.find((b) => b.id === blockId);
-      const questionCount = block?.questions.length || 0;
-
-      const newQuestion = {
-        id: `question-${Date.now()}`,
-        order: questionCount + 1,
-        value: "Энд дарж асуултын текстийг өөрчилнө үү.",
-        type: "single",
-        required: true,
-        optionCount: 4,
-        totalPoints: 10,
-        minValue: 0,
-        maxValue: 10,
-        answers: Array.from({ length: 4 }, (_, i) => ({
-          value: `Сонголт ${i + 1}`,
-          image: null,
-          score: 0,
-          isCorrect: false,
-          category: null,
-        })),
-      };
+      const questionId = `question-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 11)}`;
 
       setBlocks((prev) => {
+        const block = prev.find((b) => b.id === blockId);
+        if (block?.questions.some((q) => q.id === questionId)) {
+          return prev;
+        }
+
+        const questionCount = block?.questions.length || 0;
+        const newQuestion = {
+          id: questionId,
+          order: questionCount + 1,
+          type: QUESTION_TYPES.SINGLE,
+          question: {
+            name: "Энд дарж асуултын текстийг өөрчилнө үү.",
+            minValue: 0,
+            maxValue: 1,
+            orderNumber: questionCount,
+          },
+          answers: getDefaultAnswers(QUESTION_TYPES.SINGLE, 4),
+          category: null,
+        };
+
         const newBlocks = prev.map((block) =>
           block.id === blockId
             ? { ...block, questions: [...block.questions, newQuestion] }
             : block
         );
 
-        setSelection({ blockId, questionId: newQuestion.id });
+        if (handleBlocksUpdate) {
+          handleBlocksUpdate(newBlocks);
+        }
+
+        setTimeout(() => {
+          setSelection({ blockId, questionId });
+        }, 0);
+
         return newBlocks;
       });
     },
-    [blocks]
+    [handleBlocksUpdate, setSelection]
   );
 
   const deleteQuestion = React.useCallback(
@@ -233,8 +257,6 @@ const Questions = ({ assessmentData, onUpdateAssessment }) => {
     window.addEventListener("keydown", handleKeyboard);
     return () => window.removeEventListener("keydown", handleKeyboard);
   }, [blocks, selection, copiedItem, handleSelect]);
-
-  console.log(blocks);
 
   return (
     <div className="flex mt-[98px]">

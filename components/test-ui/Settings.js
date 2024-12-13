@@ -53,8 +53,6 @@ const Settings = ({
       : null;
   });
 
-  console.log(assessmentCategories);
-
   useEffect(() => {
     if (assessmentData) {
       form.setFieldsValue({

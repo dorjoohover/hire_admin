@@ -35,7 +35,7 @@ const AnswerOptions = ({
       if (file) {
         const imageUrl = URL.createObjectURL(file);
         const newOptions = [...question.answers];
-        newOptions[index] = { ...newOptions[index], image: { url: imageUrl } };
+        newOptions[index].answer.image = { url: imageUrl };
         onUpdate({ answers: newOptions });
       }
     };
@@ -45,15 +45,15 @@ const AnswerOptions = ({
 
   const handleOptionChange = (index, changes) => {
     const newOptions = [...question.answers];
-    newOptions[index] = {
-      ...newOptions[index],
+    newOptions[index].answer = {
+      ...newOptions[index].answer,
       ...changes,
     };
     onUpdate({ answers: newOptions });
   };
 
   const handleOptionBlur = (index) => {
-    if (!question.answers[index].value) {
+    if (!question.answers[index].answer.value) {
       handleOptionChange(index, { value: `Сонголт ${index + 1}` });
     }
     setEditingOptionIndex(null);
@@ -61,38 +61,32 @@ const AnswerOptions = ({
 
   const handleCategorySelect = (category, index) => {
     const newOptions = [...question.answers];
-    newOptions[index] = {
-      ...newOptions[index],
-      category: category.id,
-      categoryName: category.name,
-    };
+    newOptions[index].answer.category = category.id;
+    newOptions[index].answer.categoryName = category.name;
     onUpdate({ answers: newOptions });
   };
 
   const handleRemoveCategory = (index) => {
     const newOptions = [...question.answers];
-    newOptions[index] = {
-      ...newOptions[index],
-      category: null,
-      categoryName: null,
-    };
+    newOptions[index].answer.category = null;
+    newOptions[index].answer.categoryName = null;
     onUpdate({ answers: newOptions });
   };
 
   const removeOptionImage = (index) => {
     const newOptions = [...question.answers];
-    newOptions[index] = { ...newOptions[index], image: null };
+    newOptions[index].answer.image = null;
     onUpdate({ answers: newOptions });
   };
 
   const handleCorrectAnswerChange = (index, checked) => {
     const newOptions = [...question.answers];
-    if (question.type === "single") {
+    if (question.type === 10) {
       newOptions.forEach((opt, i) => {
-        newOptions[i] = { ...opt, isCorrect: i === index ? checked : false };
+        opt.answer.correct = i === index ? checked : false;
       });
     } else {
-      newOptions[index] = { ...newOptions[index], isCorrect: checked };
+      newOptions[index].answer.correct = checked;
     }
     onUpdate({ answers: newOptions });
   };
@@ -191,23 +185,43 @@ const AnswerOptions = ({
     </div>
   );
 
+  if (question.type === 40) {
+    return (
+      <MatrixGrid
+        question={question}
+        onUpdate={onUpdate}
+        assessmentData={assessmentData}
+      />
+    );
+  }
+
   const renderTrueFalse = () => (
     <div className="w-full">
-      {question.answers?.map((option, index) => (
+      {question.answers?.slice(0, 2).map((option, index) => (
         <div key={index} className="flex items-center gap-2 mb-0.5">
-          <AnswerTypeControl
-            type="single"
-            option={option}
-            index={index}
-            assessmentData={assessmentData}
-            onChange={handleCorrectAnswerChange}
+          <Radio
+            checked={option.answer.correct}
+            onChange={(e) => {
+              const newOptions = [...question.answers];
+              newOptions.forEach((opt, i) => {
+                opt.answer.correct = i === index;
+              });
+              onUpdate({ answers: newOptions });
+            }}
           />
           <div className="flex items-center gap-2 flex-1">
-            <div className="w-16">{option.value}</div>
+            <div className="w-16">{index === 0 ? "Үнэн" : "Худал"}</div>
             <InputNumber
               min={0}
-              value={option.score || 0}
-              onChange={(value) => handleOptionChange(index, { score: value })}
+              value={option.answer.point || 0}
+              onChange={(value) => {
+                const newOptions = [...question.answers];
+                newOptions[index].answer = {
+                  ...newOptions[index].answer,
+                  point: value,
+                };
+                onUpdate({ answers: newOptions });
+              }}
               className="w-24 h-[30px]"
             />
           </div>
@@ -223,29 +237,26 @@ const AnswerOptions = ({
       </div>
       <InputNumber
         min={0}
-        value={question.falseScore || 0}
-        onChange={(value) => onUpdate({ score: value })}
+        value={question.question?.minValue || 0}
+        onChange={(value) =>
+          onUpdate(question.id, {
+            question: {
+              ...question.question,
+              minValue: value,
+            },
+          })
+        }
         className="w-full h-[30px]"
       />
     </div>
   );
 
-  if (question.type === "matrix") {
-    return (
-      <MatrixGrid
-        question={question}
-        onUpdate={onUpdate}
-        assessmentData={assessmentData}
-      />
-    );
-  }
-
   const renderMap = {
-    single: renderSingleOrMultipleChoice,
-    multiple: renderSingleOrMultipleChoice,
-    constantSum: renderConstantSum,
-    trueFalse: renderTrueFalse,
-    text: renderTextInput,
+    10: renderSingleOrMultipleChoice,
+    20: renderSingleOrMultipleChoice,
+    50: renderConstantSum,
+    30: renderTrueFalse,
+    60: renderTextInput,
   };
 
   return renderMap[question.type]?.() || null;
@@ -258,7 +269,7 @@ const AnswerTypeControl = ({
   assessmentData,
   onChange,
 }) => {
-  const Control = type === "single" ? Radio : Checkbox;
+  const Control = type === 10 ? Radio : Checkbox;
 
   return (
     <Tooltip
@@ -266,9 +277,9 @@ const AnswerTypeControl = ({
     >
       <Control
         disabled={!assessmentData?.data.type === 20}
-        checked={option.isCorrect || false}
+        checked={option.answer?.correct || false}
         onChange={(e) => onChange(index, e.target.checked)}
-        className={type === "multiple" ? "pr-2" : ""}
+        className={type === 20 ? "pr-2" : ""}
       />
     </Tooltip>
   );
@@ -291,11 +302,11 @@ const AnswerContent = ({
     <div className="flex-1">
       <div className="flex items-center gap-2">
         <div className="flex-1">
-          {option.image ? (
+          {option.answer?.image ? (
             <div className="mt-2 relative group/image">
               <img
-                src={option.image.url}
-                alt={option.value}
+                src={option.answer.image.url}
+                alt={option.answer.value}
                 className="h-[100px] object-cover rounded"
               />
               <button
@@ -309,7 +320,7 @@ const AnswerContent = ({
             <div className="flex items-center w-full">
               {editingOptionIndex === index ? (
                 <input
-                  value={option.value}
+                  value={option.answer?.value || ""}
                   onChange={(e) =>
                     handleOptionChange(index, { value: e.target.value })
                   }
@@ -325,7 +336,7 @@ const AnswerContent = ({
                   onBlur={() => handleOptionBlur(index)}
                   autoFocus
                   className="outline-none underline w-full"
-                  size={option.value?.length + 10}
+                  size={option.answer?.value?.length + 10}
                 />
               ) : (
                 <div
@@ -334,7 +345,7 @@ const AnswerContent = ({
                   }`}
                   onClick={() => setEditingOptionIndex(index)}
                 >
-                  {option.value?.trim() || `Сонголт ${index + 1}`}
+                  {option.answer?.value?.trim() || `Сонголт ${index + 1}`}
                 </div>
               )}
             </div>
@@ -344,20 +355,20 @@ const AnswerContent = ({
         {!isConstantSum && (
           <InputNumber
             min={0}
-            value={option.score || 0}
-            onChange={(value) => handleOptionChange(index, { score: value })}
+            value={option.answer?.point || 0}
+            onChange={(value) => handleOptionChange(index, { point: value })}
             className="w-24 h-[30px] ml-8"
           />
         )}
 
-        {option.category && (
+        {option.answer?.category && (
           <Tooltip title="Ангилал устгах">
             <div
               className="flex items-center gap-1 bg-blue-100 px-2 py-0.5 rounded-md text-sm cursor-pointer hover:bg-blue-200"
               onClick={() => handleRemoveCategory(index)}
             >
               <TagIcon width={14} />
-              {option.categoryName}
+              {option.answer?.categoryName}
             </div>
           </Tooltip>
         )}

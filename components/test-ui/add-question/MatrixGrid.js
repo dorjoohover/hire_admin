@@ -7,13 +7,11 @@ import { TagIcon, DropdownIcon, PenIcon, MoreIcon } from "../../Icons";
 const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
   const [editingCell, setEditingCell] = useState(null);
 
-  const answers = question.answers?.answer || [];
-  const scalePoints = answers[0]?.matrix || [];
-
   const handleScalePointKeyDown = (e, index) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextIndex = index < scalePoints.length - 1 ? index + 1 : 0;
+      const nextIndex =
+        index < question.answers[0].matrix.length - 1 ? index + 1 : 0;
       setEditingCell({ type: "scale", index: nextIndex });
     }
   };
@@ -21,53 +19,54 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
   const handleOptionKeyDown = (e, index) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      const nextIndex = index < answers.length - 1 ? index + 1 : 0;
+      const nextIndex = index < question.answers.length - 1 ? index + 1 : 0;
       setEditingCell({ type: "option", index: nextIndex });
     }
   };
 
   const handleCategorySelect = (category, index) => {
-    const newAnswers = answers.map((answer) => ({
+    const newAnswers = question.answers.map((answer) => ({
       ...answer,
       matrix: answer.matrix.map((item, i) =>
-        i === index
-          ? { ...item, category: category.id, categoryName: category.name }
-          : item
+        i === index ? { ...item, category: category.id } : item
       ),
     }));
-    onUpdate({ answers: { answer: newAnswers } });
+    onUpdate({ answers: newAnswers });
   };
 
   const handleRemoveCategory = (index) => {
-    const newAnswers = answers.map((answer) => ({
+    const newAnswers = question.answers.map((answer) => ({
       ...answer,
       matrix: answer.matrix.map((item, i) =>
-        i === index ? { ...item, category: null, categoryName: null } : item
+        i === index ? { ...item, category: null } : item
       ),
     }));
-    onUpdate({ answers: { answer: newAnswers } });
+    onUpdate({ answers: newAnswers });
   };
 
   const handleScalePointEdit = (index, newValue) => {
-    const newAnswers = answers.map((answer) => ({
+    const newAnswers = question.answers.map((answer) => ({
       ...answer,
       matrix: answer.matrix.map((item, i) =>
         i === index ? { ...item, value: newValue } : item
       ),
     }));
-    onUpdate({ answers: { answer: newAnswers } });
+    onUpdate({ answers: newAnswers });
   };
 
   const handleOptionEdit = (index, newText) => {
-    const newAnswers = [...answers];
-    newAnswers[index] = {
-      ...newAnswers[index],
-      value: {
-        ...newAnswers[index].value,
-        value: newText,
-      },
-    };
-    onUpdate({ answers: { answer: newAnswers } });
+    const newAnswers = [...question.answers];
+    newAnswers[index].answer.value = newText;
+    onUpdate({ answers: newAnswers });
+  };
+
+  const handlePointChange = (rowIndex, colIndex, value) => {
+    const newAnswers = [...question.answers];
+    if (!newAnswers[rowIndex].matrix[colIndex]) {
+      newAnswers[rowIndex].matrix[colIndex] = {};
+    }
+    newAnswers[rowIndex].matrix[colIndex].point = value;
+    onUpdate({ answers: newAnswers });
   };
 
   return (
@@ -77,10 +76,10 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
         <div
           className="flex-1 grid border-b"
           style={{
-            gridTemplateColumns: `repeat(${scalePoints.length}, 1fr)`,
+            gridTemplateColumns: `repeat(${question.answers[0].matrix.length}, 1fr)`,
           }}
         >
-          {scalePoints.map((point, index) => (
+          {question.answers[0].matrix.map((point, index) => (
             <div key={index} className="text-center mb-1">
               <div className="flex flex-col items-center">
                 {editingCell?.type === "scale" &&
@@ -103,7 +102,7 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
                   />
                 ) : (
                   <div
-                    className="cursor-pointer hover:bg-neutral rounded"
+                    className="cursor-pointer hover:bg-neutral rounded text-gray-600 px-2"
                     onClick={() => setEditingCell({ type: "scale", index })}
                   >
                     {point.value}
@@ -116,7 +115,9 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
                       onClick={() => handleRemoveCategory(index)}
                     >
                       <TagIcon width={14} />
-                      {point.categoryName}
+                      {assessmentData?.data.answerCategories.find(
+                        (c) => c.id === point.category
+                      )?.name || ""}
                     </div>
                   </Tooltip>
                 ) : (
@@ -132,19 +133,21 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
                           ),
                           icon: <PenIcon width={16} />,
                           disabled:
-                            !assessmentData?.data.answerCategories.length > 0,
+                            !assessmentData?.data.answerCategories?.length,
                           children: assessmentData?.data.answerCategories?.map(
                             (category) => ({
                               key: category.id,
                               label: (
-                                <div className="flex items-center gap-2">
-                                  <TagIcon
-                                    width={16}
-                                    className="text-gray-400"
-                                  />
-                                  <span className="text-gray-600 font-medium">
-                                    {category.name}
-                                  </span>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <TagIcon
+                                      width={16}
+                                      className="text-gray-400"
+                                    />
+                                    <span className="text-gray-600 font-medium">
+                                      {category.name.toLowerCase()}
+                                    </span>
+                                  </div>
                                 </div>
                               ),
                               onClick: () =>
@@ -172,17 +175,17 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
       </div>
 
       <div className="pt-4"></div>
-      {answers.map((answer, rowIndex) => (
+      {question.answers.map((answer, rowIndex) => (
         <div key={rowIndex} className="flex items-center">
           <div className="w-1/4 border-r py-1 pb-2">
             {editingCell?.type === "option" &&
             editingCell?.index === rowIndex ? (
               <input
-                value={answer.value.value}
+                value={answer.answer.value}
                 onChange={(e) => handleOptionEdit(rowIndex, e.target.value)}
                 onBlur={() => {
-                  if (!answer.value.value.trim()) {
-                    handleOptionEdit(rowIndex, `Мөр ${rowIndex + 1}`);
+                  if (!answer.answer.value.trim()) {
+                    handleOptionEdit(rowIndex, `Сонголт ${rowIndex + 1}`);
                   }
                   setEditingCell(null);
                 }}
@@ -193,44 +196,29 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
               />
             ) : (
               <div
-                className="cursor-pointer inline-block hover:bg-neutral rounded"
+                className="cursor-pointer hover:bg-neutral rounded"
                 onClick={() =>
                   setEditingCell({ type: "option", index: rowIndex })
                 }
-                onMouseLeave={() => {
-                  if (
-                    editingCell?.type !== "option" ||
-                    editingCell?.index !== rowIndex
-                  ) {
-                    setEditingCell(null);
-                  }
-                }}
               >
-                {answer.value.value}
+                {answer.answer.value}
               </div>
             )}
           </div>
           <div
             className="flex-1 grid"
             style={{
-              gridTemplateColumns: `repeat(${scalePoints.length}, 1fr)`,
+              gridTemplateColumns: `repeat(${answer.matrix.length}, 1fr)`,
             }}
           >
-            {scalePoints.map((_, colIndex) => (
+            {answer.matrix.map((point, colIndex) => (
               <div key={colIndex} className="flex justify-center p-1">
                 <InputNumber
                   min={-1}
-                  value={answer.matrix[colIndex]?.point || 0}
-                  onChange={(value) => {
-                    const newAnswers = [...answers];
-                    if (!newAnswers[rowIndex].matrix[colIndex]) {
-                      newAnswers[rowIndex].matrix[colIndex] = {};
-                    }
-                    newAnswers[rowIndex].matrix[colIndex].point = value;
-                    onUpdate({
-                      answers: { answer: newAnswers },
-                    });
-                  }}
+                  value={point.point || 0}
+                  onChange={(value) =>
+                    handlePointChange(rowIndex, colIndex, value)
+                  }
                   className="w-20"
                 />
               </div>

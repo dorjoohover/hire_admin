@@ -240,6 +240,7 @@ export const Block = ({
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onAddBlock();
             }}
@@ -338,7 +339,11 @@ export const Block = ({
 
             <div className="flex justify-start pb-3 pt-5">
               <Button
-                onClick={() => onAddQuestion(block.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAddQuestion(block.id);
+                }}
                 className="bg-main border-none text-white rounded-xl px-4 login mb-0 font-bold"
                 icon={<PlusIcon width={18} />}
               >

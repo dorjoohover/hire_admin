@@ -1,31 +1,6 @@
-export const createQuestionType = async (values) => {
-  const token = (await cookies()).get("auth-token");
-  if (!token?.value) return { token: false };
-  try {
-    const body = {
-      name: values.name,
-      description: values.description,
-    };
-    const res = await fetch(`${api}question/type`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token?.value ?? ""}`,
-      },
-      body: JSON.stringify(body),
-    }).then((d) => d.json());
-    console.log(res);
-    return {
-      data: res.payload,
-      token: true,
-      message: res?.payload?.message,
-      status: res?.payload?.status,
-      success: res.succeed,
-    };
-  } catch (error) {
-    console.error(error);
-  }
-};
+"use server";
+import { api } from "@/utils/routes";
+import { cookies } from "next/headers";
 
 export const createQuestionCategory = async (values) => {
   const token = (await cookies()).get("auth-token");
@@ -84,6 +59,29 @@ export const createQuestion = async (values) => {
       token: true,
       message: res?.payload?.message,
       status: res?.payload?.status,
+      success: res.succeed,
+    };
+  } catch (error) {
+    console.error(error);
+  }
+};
+
+export const getQuestionsByAssessmentId = async (id) => {
+  try {
+    const token = (await cookies()).get("auth-token");
+    const res = await fetch(`${api}question/assessment/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token?.value ?? ""}`,
+      },
+    }).then((d) => d.json());
+    console.log(res);
+    return {
+      data: res.payload,
+      token: true,
+      message: res?.message,
+      status: res?.status,
       success: res.succeed,
     };
   } catch (error) {
