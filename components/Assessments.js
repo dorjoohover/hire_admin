@@ -12,7 +12,6 @@ import {
   CopyIcon,
   TrashIcon,
   TestIcon,
-  GlobeIcon,
   DropdownIcon,
 } from "./Icons";
 import { useRouter } from "next/navigation";
@@ -78,6 +77,7 @@ const Assessments = () => {
         onClick: (e) => {
           e.domEvent.stopPropagation();
         },
+        disabled: true,
       },
       {
         key: "2",
@@ -89,6 +89,7 @@ const Assessments = () => {
         onClick: (e) => {
           e.domEvent.stopPropagation();
         },
+        disabled: true,
       },
       {
         key: "3",

@@ -14,6 +14,7 @@ import {
   createQuestion,
   createQuestionCategory,
   getQuestionsByAssessmentId,
+  updateQuestions,
 } from "../(api)/question";
 import { useSearchParams, useRouter } from "next/navigation";
 import Settings from "@/components/test-ui/Settings";
@@ -54,35 +55,67 @@ export default function Home() {
           if (d.success) {
             setAssessmentQuestions(d.data);
             if (d.data && d.data.length > 0) {
-              const transformedBlocks = d.data.map((block, index) => ({
-                id: `block-${block.category.id}`,
+              const transformedBlocks = d.data.map((block) => ({
+                id: block.category.id,
                 name: block.category.name,
                 order: block.category.orderNumber,
                 value: "",
                 image: null,
                 hasQuestion: false,
                 isExpanded: true,
-                questions: block.questions.map((question) => ({
-                  id: `question-${question.id}`,
-                  order: question.orderNumber,
-                  type: question.type || 10,
-                  value: question.name,
-                  question: {
-                    name: question.name,
-                    minValue: question.minValue,
-                    maxValue: question.maxValue,
-                    orderNumber: question.orderNumber,
-                  },
-                  answers: question.answers.map((answer) => ({
-                    answer: {
-                      value: answer.value,
-                      point: answer.point || 0,
-                      orderNumber: answer.orderNumber,
-                      category: null,
-                      correct: answer.correct,
-                    },
-                  })),
-                })),
+                questions: block.questions.map((question) => {
+                  if (question.type === 40) {
+                    return {
+                      id: question.id,
+                      order: question.orderNumber,
+                      type: question.type,
+                      value: question.name,
+                      question: {
+                        name: question.name,
+                        minValue: question.minValue,
+                        maxValue: question.maxValue,
+                        orderNumber: question.orderNumber,
+                      },
+                      answers: question.answers.map((answerObj) => ({
+                        answer: {
+                          value: answerObj.value,
+                          point: answerObj.point || 0,
+                          orderNumber: answerObj.orderNumber,
+                          category: answerObj.category || null,
+                        },
+                        matrix: answerObj.matrix.map((matrixItem) => ({
+                          value: matrixItem.value,
+                          category: matrixItem.category || null,
+                          orderNumber: matrixItem.orderNumber,
+                        })),
+                      })),
+                      optionCount: question.answers.length,
+                    };
+                  } else {
+                    return {
+                      id: question.id,
+                      order: question.orderNumber,
+                      type: question.type,
+                      value: question.name,
+                      question: {
+                        name: question.name,
+                        minValue: question.minValue,
+                        maxValue: question.maxValue,
+                        orderNumber: question.orderNumber,
+                      },
+                      answers: question.answers.map((answer) => ({
+                        answer: {
+                          value: answer.value,
+                          point: answer.point !== null ? answer.point : 0,
+                          orderNumber: answer.orderNumber,
+                          category: answer.category,
+                          correct: answer.correct || false,
+                        },
+                      })),
+                      optionCount: question.answers.length,
+                    };
+                  }
+                }),
               }));
               setBlocks(transformedBlocks);
             }
@@ -132,6 +165,7 @@ export default function Home() {
       label: "Тохиргоо",
       content: (
         <Settings
+          blocks={blocks}
           assessmentData={assessmentData}
           assessmentCategories={assessmentCategories}
           onUpdateAssessment={handleUpdateAssessment}
@@ -157,48 +191,116 @@ export default function Home() {
     setActiveKey(key);
   };
 
+  const formatAnswers = (question) => {
+    if (question.type === 40) {
+      return question.answers.map((answerObj) => ({
+        answer: {
+          value: answerObj.answer.value,
+          point: answerObj.answer.point || 0,
+          orderNumber: answerObj.answer.orderNumber,
+          category: answerObj.answer.category || null,
+        },
+        matrix: answerObj.matrix.map((matrixItem) => ({
+          value: matrixItem.value,
+          category: matrixItem.category || null,
+          orderNumber: matrixItem.orderNumber,
+          point: matrixItem.point || 0,
+        })),
+      }));
+    }
+
+    return question.answers.map((answerObj) => ({
+      answer: {
+        value: answerObj.answer.value,
+        point: answerObj.answer.point || 0,
+        orderNumber: answerObj.answer.orderNumber,
+        category: answerObj.answer.category || null,
+        correct: answerObj.answer.correct || false,
+      },
+    }));
+  };
+
   const publish = async () => {
     try {
       setLoading(true);
       const id = params.get("id");
-      if (id) {
-        await updateAssessmentById(id, changes).then((d) => {
-          if (d.success) {
-            messageApi.error(d.message || "Хадгалахад алдаа гарлаа.");
-          }
-        });
+      if (!id) return;
 
-        blocks.map(async (block) => {
-          await createQuestionCategory().then((d) => {
-            block.questions.map(async (question) => {
-              await createQuestion({
-                category: d.data,
-                type: question.type,
-                question: {
-                  name: question.value,
-                  minValue: question.question?.minValue || 0,
-                  maxValue: question.question?.maxValue || 1,
-                  orderNumber: question.order,
-                },
-                answers: question.answers,
-              });
-            });
-          });
-        });
-
-        messageApi.success("Амжилттай хадгаллаа.", [3]);
-        fetchData();
-        setChanges({});
+      if (Object.keys(changes).length > 0) {
+        const assessmentResponse = await updateAssessmentById(id, changes);
+        if (!assessmentResponse.success) {
+          messageApi.error(
+            assessmentResponse.message || "Хадгалахад алдаа гарлаа"
+          );
+          return;
+        }
       }
+
+      for (const block of blocks) {
+        let blockId = block.id;
+
+        if (!assessmentQuestions?.some((aq) => aq.category.id === block.id)) {
+          const blockResponse = await createQuestionCategory({
+            name: block.name,
+            duration: 0,
+            totalPrice: 0,
+            questionCount: block.questions.length,
+            orderNumber: block.order,
+            assessment: id,
+          });
+
+          if (!blockResponse.success) {
+            messageApi.error("Блок үүсгэхэд алдаа гарлаа");
+            return;
+          }
+
+          blockId = blockResponse.data;
+        }
+
+        const existingBlockQuestions =
+          assessmentQuestions?.find((aq) => aq.category.id === block.id)
+            ?.questions || [];
+
+        for (const question of block.questions) {
+          if (existingBlockQuestions.find((eq) => eq.id === question.id)) {
+            await updateQuestions({
+              id: question.id,
+              category: blockId,
+              type: question.type,
+              question: {
+                name: question.value,
+                minValue: question.question?.minValue || 0,
+                maxValue: question.question?.maxValue || 1,
+                orderNumber: question.order,
+              },
+              answers: formatAnswers(question),
+            });
+          } else {
+            await createQuestion({
+              category: blockId,
+              type: question.type,
+              question: {
+                name: question.value,
+                minValue: question.question?.minValue || 0,
+                maxValue: question.question?.maxValue || 1,
+                orderNumber: question.order,
+              },
+              answers: formatAnswers(question),
+            });
+          }
+        }
+      }
+
+      messageApi.success("Амжилттай хадгаллаа");
+      await fetchData();
+      setChanges({});
     } catch (error) {
-      console.error(error);
-      message.error("Сервертэй холбогдоход алдаа гарлаа.");
+      console.error("Error in publish:", error);
+      messageApi.error("Алдаа гарлаа");
     } finally {
       setLoading(false);
     }
   };
-
-  console.log("haoo", blocks);
 
   return (
     <div className="flex flex-col h-screen">

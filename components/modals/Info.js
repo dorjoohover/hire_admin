@@ -29,7 +29,7 @@ const InfoModal = ({ open, onOk, onCancel, text }) => {
       <div className="text-main flex justify-center">
         <WarningIcon width={60} height={60} />
       </div>
-      <p className="pt-4 pb-2">{text}</p>
+      <p className="pt-4 pb-2 text-center leading-5">{text}</p>
     </Modal>
   );
 };

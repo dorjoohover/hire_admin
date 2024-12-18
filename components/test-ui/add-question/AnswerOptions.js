@@ -276,7 +276,7 @@ const AnswerTypeControl = ({
       title={assessmentData?.data.type === 10 ? "Зөв хариугаар тэмдэглэх" : ""}
     >
       <Control
-        disabled={!assessmentData?.data.type === 20}
+        disabled={assessmentData?.data.type === 20}
         checked={option.answer?.correct || false}
         onChange={(e) => onChange(index, e.target.checked)}
         className={type === 20 ? "pr-2" : ""}
@@ -368,7 +368,7 @@ const AnswerContent = ({
               onClick={() => handleRemoveCategory(index)}
             >
               <TagIcon width={14} />
-              {option.answer?.categoryName}
+              {option.answer?.categoryName || option.answer?.category?.name}
             </div>
           </Tooltip>
         )}

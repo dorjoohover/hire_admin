@@ -76,10 +76,10 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
         <div
           className="flex-1 grid border-b"
           style={{
-            gridTemplateColumns: `repeat(${question.answers[0].matrix.length}, 1fr)`,
+            gridTemplateColumns: `repeat(${question.answers[0].matrix?.length}, 1fr)`,
           }}
         >
-          {question.answers[0].matrix.map((point, index) => (
+          {question.answers[0].matrix?.map((point, index) => (
             <div key={index} className="text-center mb-1">
               <div className="flex flex-col items-center">
                 {editingCell?.type === "scale" &&
@@ -208,10 +208,10 @@ const MatrixGrid = ({ question, onUpdate, assessmentData }) => {
           <div
             className="flex-1 grid"
             style={{
-              gridTemplateColumns: `repeat(${answer.matrix.length}, 1fr)`,
+              gridTemplateColumns: `repeat(${answer.matrix?.length}, 1fr)`,
             }}
           >
-            {answer.matrix.map((point, colIndex) => (
+            {answer.matrix?.map((point, colIndex) => (
               <div key={colIndex} className="flex justify-center p-1">
                 <InputNumber
                   min={-1}

@@ -5,6 +5,12 @@ import { Block } from "./Block";
 import { Tools } from "./Tools";
 import { TestName } from "./TestName";
 import { getDefaultAnswers, QUESTION_TYPES } from "@/utils/values";
+import {
+  deleteQuestionById,
+  deleteQuestionCategoryById,
+} from "@/app/(api)/question";
+import InfoModal from "../modals/Info";
+import { message, Spin } from "antd";
 
 const Questions = ({
   assessmentData,
@@ -18,9 +24,32 @@ const Questions = ({
   );
 
   const [selection, setSelection] = useState({
-    blockId: blocks[0]?.id,
+    blockId: null,
     questionId: null,
   });
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    blockId: null,
+    questionId: null,
+  });
+  const [loading, setLoading] = useState(false);
+  const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    if (blocks && blocks.length > 0) {
+      if (blocks[0].category) {
+        setSelection((prev) => ({
+          ...prev,
+          blockId: blocks[0].category.id,
+        }));
+      } else if (blocks[0].id) {
+        setSelection((prev) => ({
+          ...prev,
+          blockId: blocks[0].id,
+        }));
+      }
+    }
+  }, [blocks]);
 
   const handleSelect = React.useCallback((blockId, questionId) => {
     setSelection({ blockId, questionId });
@@ -95,18 +124,18 @@ const Questions = ({
   const deleteBlock = React.useCallback(
     (blockId) => {
       setBlocks((prev) => {
-        const updatedBlocks = prev.filter((block) => block.id !== blockId);
-        const reorderedBlocks = updatedBlocks.map((block, index) => ({
+        const newBlocks = prev.filter((block) => block.id !== blockId);
+        return newBlocks.map((block, index) => ({
           ...block,
           order: index + 1,
         }));
-        if (selection.blockId === blockId) {
-          handleSelect(reorderedBlocks[0]?.id || null, null);
-        }
-        return reorderedBlocks;
       });
+
+      if (selection.blockId === blockId) {
+        handleSelect(blocks[0]?.id || null, null);
+      }
     },
-    [selection.blockId, handleSelect]
+    [blocks, selection.blockId, handleSelect]
   );
 
   const addQuestion = React.useCallback(
@@ -156,8 +185,48 @@ const Questions = ({
     [handleBlocksUpdate, setSelection]
   );
 
-  const deleteQuestion = React.useCallback(
-    (blockId, questionId) => {
+  const handleDeleteQuestion = async (blockId, questionId) => {
+    if (!questionId) return;
+
+    const exists = typeof questionId !== "string";
+
+    setLoading(true);
+
+    if (exists) {
+      deleteQuestionById(questionId)
+        .then((d) => {
+          if (d.success) {
+            setDeleteModal({ open: false, blockId: null, questionId: null });
+            messageApi.info("Асуулт устсан.", [3]);
+
+            setBlocks((prev) =>
+              prev.map((block) =>
+                block.id === blockId
+                  ? {
+                      ...block,
+                      questions: block.questions
+                        .filter((q) => q.id !== questionId)
+                        .map((q, index) => ({ ...q, order: index + 1 })),
+                    }
+                  : block
+              )
+            );
+
+            if (selection.questionId === questionId) {
+              handleSelect(blockId, null);
+            }
+          } else {
+            messageApi.error(d.message || "Асуулт устгахад алдаа гарлаа.");
+          }
+        })
+        .catch(() => {
+          message.error("Сервертэй холбогдоход алдаа гарлаа");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setDeleteModal({ open: false, blockId: null, questionId: null });
       setBlocks((prev) =>
         prev.map((block) =>
           block.id === blockId
@@ -170,12 +239,13 @@ const Questions = ({
             : block
         )
       );
+
       if (selection.questionId === questionId) {
         handleSelect(blockId, null);
       }
-    },
-    [selection.questionId, handleSelect]
-  );
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (assessmentData?.data.name) {
@@ -258,8 +328,31 @@ const Questions = ({
     return () => window.removeEventListener("keydown", handleKeyboard);
   }, [blocks, selection, copiedItem, handleSelect]);
 
+  const deleteQuestion = React.useCallback((blockId, questionId) => {
+    setDeleteModal({
+      open: true,
+      blockId,
+      questionId,
+    });
+  }, []);
+
   return (
     <div className="flex mt-[98px]">
+      <Spin tip="Уншиж байна..." fullscreen spinning={loading} />
+
+      {contextHolder}
+      <InfoModal
+        open={deleteModal.open}
+        onOk={() => {
+          if (deleteModal.blockId && deleteModal.questionId) {
+            handleDeleteQuestion(deleteModal.blockId, deleteModal.questionId);
+          }
+        }}
+        onCancel={() =>
+          setDeleteModal({ open: false, blockId: null, questionId: null })
+        }
+        text={`Асуултыг устгах гэж байна. Итгэлтэй байна уу? Энэ үйлдлийг буцан сэргээх боломжгүй.`}
+      />
       <Tools
         selection={selection}
         blocks={blocks}
