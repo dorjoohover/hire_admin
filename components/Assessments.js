@@ -289,7 +289,7 @@ const Assessments = () => {
       title: "Шинэчилсэн огноо",
       dataIndex: ["data", "updatedAt"],
       sorter: (a, b) => new Date(a.data.updatedAt) - new Date(b.data.updatedAt),
-      render: (date) => new Date(date).toISOString().split("T")[0],
+      render: (date) => new Date(date).toISOString(),
     },
     {
       title: "",

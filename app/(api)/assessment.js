@@ -48,7 +48,6 @@ export const createAssessmentLevel = async ({ name, parent }) => {
       },
       body: JSON.stringify(body),
     }).then((d) => d.json());
-    console.log(res);
     return {
       data: res.payload,
       token: true,
@@ -61,10 +60,13 @@ export const createAssessmentLevel = async ({ name, parent }) => {
   }
 };
 export const getAssessments = async () => {
+  const token = (await cookies()).get("auth-token");
+  if (!token?.value) return { token: false };
   try {
     const res = await fetch(`${api}assessment`, {
       method: "GET",
       headers: {
+        Authorization: `Bearer ${token?.value ?? ""}`,
         "Content-Type": "application/json",
       },
     }).then((d) => d.json());
