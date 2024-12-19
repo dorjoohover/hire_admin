@@ -78,13 +78,16 @@ export default function Home() {
                       },
                       answers: question.answers.map((answerObj) => ({
                         answer: {
+                          id: answerObj.id,
                           value: answerObj.value,
                           point: answerObj.point || 0,
                           orderNumber: answerObj.orderNumber,
                           category: answerObj.category || null,
                         },
                         matrix: answerObj.matrix.map((matrixItem) => ({
+                          id: matrixItem.id,
                           value: matrixItem.value,
+                          point: matrixItem.point,
                           category: matrixItem.category || null,
                           orderNumber: matrixItem.orderNumber,
                         })),
@@ -103,15 +106,18 @@ export default function Home() {
                         maxValue: question.maxValue,
                         orderNumber: question.orderNumber,
                       },
-                      answers: question.answers.map((answer) => ({
-                        answer: {
-                          value: answer.value,
-                          point: answer.point !== null ? answer.point : 0,
-                          orderNumber: answer.orderNumber,
-                          category: answer.category,
-                          correct: answer.correct || false,
-                        },
-                      })),
+                      answers: question.answers.map((answer) => {
+                        return {
+                          answer: {
+                            id: answer.id,
+                            value: answer.value,
+                            point: answer.point !== null ? answer.point : 0,
+                            orderNumber: answer.orderNumber,
+                            category: answer.category,
+                            correct: answer.correct || false,
+                          },
+                        };
+                      }),
                       optionCount: question.answers.length,
                     };
                   }
@@ -130,7 +136,6 @@ export default function Home() {
   };
 
   console.log("father", assessmentQuestions);
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -193,31 +198,47 @@ export default function Home() {
 
   const formatAnswers = (question) => {
     if (question.type === 40) {
-      return question.answers.map((answerObj) => ({
-        answer: {
+      return question.answers.map((answerObj) => {
+        const id = isNaN(parseInt(answerObj.answer.id));
+
+        const answer = {
+          id: id ? null : answerObj.answer.id,
           value: answerObj.answer.value,
           point: answerObj.answer.point || 0,
           orderNumber: answerObj.answer.orderNumber,
           category: answerObj.answer.category || null,
-        },
-        matrix: answerObj.matrix.map((matrixItem) => ({
-          value: matrixItem.value,
-          category: matrixItem.category || null,
-          orderNumber: matrixItem.orderNumber,
-          point: matrixItem.point || 0,
-        })),
-      }));
+        };
+
+        const matrix = answerObj.matrix.map((matrixItem) => {
+          const mId = isNaN(parseInt(matrixItem.id));
+          return {
+            value: matrixItem.value,
+            id: mId ? null : matrixItem.id,
+            category: matrixItem.category || null,
+            orderNumber: matrixItem.orderNumber,
+            point: matrixItem.point || 0,
+          };
+        });
+        return {
+          answer,
+          matrix,
+        };
+      });
     }
 
-    return question.answers.map((answerObj) => ({
-      answer: {
-        value: answerObj.answer.value,
-        point: answerObj.answer.point || 0,
-        orderNumber: answerObj.answer.orderNumber,
-        category: answerObj.answer.category || null,
-        correct: answerObj.answer.correct || false,
-      },
-    }));
+    return question.answers.map((answerObj) => {
+      const id = isNaN(parseInt(answerObj.answer.id));
+      return {
+        answer: {
+          id: id ? null : answerObj.answer.id,
+          value: answerObj.answer.value,
+          point: answerObj.answer.point || 0,
+          orderNumber: answerObj.answer.orderNumber,
+          category: answerObj.answer.category || null,
+          correct: answerObj.answer.correct || false,
+        },
+      };
+    });
   };
 
   const publish = async () => {
@@ -248,12 +269,10 @@ export default function Home() {
             orderNumber: block.order,
             assessment: id,
           });
-
           if (!blockResponse.success) {
             messageApi.error("Блок үүсгэхэд алдаа гарлаа");
             return;
           }
-
           blockId = blockResponse.data;
         }
 
@@ -262,6 +281,18 @@ export default function Home() {
             ?.questions || [];
 
         for (const question of block.questions) {
+          console.log({
+            id: question.id,
+            category: blockId,
+            type: question.type,
+            question: {
+              name: question.value,
+              minValue: question.question?.minValue || 0,
+              maxValue: question.question?.maxValue || 1,
+              orderNumber: question.order,
+            },
+            answers: formatAnswers(question),
+          });
           if (existingBlockQuestions.find((eq) => eq.id === question.id)) {
             await updateQuestions({
               id: question.id,

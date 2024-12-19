@@ -136,29 +136,31 @@ const AnswerOptions = ({
 
   const renderSingleOrMultipleChoice = () => (
     <div className="w-full">
-      {question.answers.map((option, index) => (
-        <div key={index} className="flex items-center gap-2 group">
-          <AnswerTypeControl
-            type={question.type}
-            option={option}
-            index={index}
-            assessmentData={assessmentData}
-            onChange={handleCorrectAnswerChange}
-          />
-          <AnswerContent
-            option={option}
-            index={index}
-            editingOptionIndex={editingOptionIndex}
-            setEditingOptionIndex={setEditingOptionIndex}
-            handleOptionChange={handleOptionChange}
-            handleOptionBlur={handleOptionBlur}
-            removeOptionImage={removeOptionImage}
-            handleRemoveCategory={handleRemoveCategory}
-            getOptionMenu={getOptionMenu}
-            question={question}
-          />
-        </div>
-      ))}
+      {question.answers.map((option, index) => {
+        return (
+          <div key={index} className="flex items-center gap-2 group">
+            <AnswerTypeControl
+              type={question.type}
+              option={option}
+              index={index}
+              assessmentData={assessmentData}
+              onChange={handleCorrectAnswerChange}
+            />
+            <AnswerContent
+              option={option}
+              index={index}
+              editingOptionIndex={editingOptionIndex}
+              setEditingOptionIndex={setEditingOptionIndex}
+              handleOptionChange={handleOptionChange}
+              handleOptionBlur={handleOptionBlur}
+              removeOptionImage={removeOptionImage}
+              handleRemoveCategory={handleRemoveCategory}
+              getOptionMenu={getOptionMenu}
+              question={question}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 

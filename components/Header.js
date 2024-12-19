@@ -1,6 +1,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { DropdownIcon, RightIcon } from "./Icons";
+import Link from "next/link";
 
 const Header = () => {
   const router = useRouter();
@@ -10,7 +11,9 @@ const Header = () => {
   return (
     <>
       <div className="border-b p-6 py-3 flex items-center gap-7">
-        <Image src="/axiom.png" width={70} height={10} alt="Axiom Logo" />
+        <Link href={"/"}>
+          <Image src="/axiom.png" width={70} height={10} alt="Axiom Logo" />
+        </Link>
         {/* {isTestPage && (
           <>
             <div className="flex items-center">

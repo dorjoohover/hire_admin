@@ -147,6 +147,7 @@ export const updateQuestions = async (questionData) => {
         Authorization: `Bearer ${token?.value ?? ""}`,
       },
       body: JSON.stringify({
+        id: questionData.id,
         category: questionData.category,
         type: questionData.type,
         question: questionData.question,
